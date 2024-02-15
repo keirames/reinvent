@@ -21,14 +21,18 @@ func main() {
 		}
 	})
 
+	router.HandleFunc("/crash", func(w http.ResponseWriter, r *http.Request) {
+		log.Fatal("server crashed")
+	})
+
 	srv := &http.Server{
 		Handler: router,
-		Addr:    "0.0.0.0:8000",
+		Addr:    "localhost:8000",
 		// Good practice: enforce timeouts for servers you create!
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
 
-	fmt.Println("Server started at 0.0.0.0:8000")
+	fmt.Println("Server started at localhost:8000")
 	log.Fatal(srv.ListenAndServe())
 }
