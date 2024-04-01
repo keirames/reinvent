@@ -12,6 +12,11 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+func HelloHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "hello")
+}
+
 func main() {
 	conn, err := pgx.Connect(
 		context.Background(),
@@ -23,11 +28,15 @@ func main() {
 
 	defer conn.Close(context.Background())
 
+	// ctx := context.Background()
+	// req := testcontainers.ContainerRequest{
+	// 	Image:        "postgres:latest",
+	// 	ExposedPorts: []string{"5432/tcp"},
+	// 	WaitingFor:   wait.ForLog("Ready to accept connections"),
+	// }
+
 	r := mux.NewRouter()
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "hello")
-	})
+	r.HandleFunc("/", HelloHandler)
 	// r.HandleFunc("/create-single-event", func(w http.ResponseWriter, r *http.Request) {
 	// 	w.WriteHeader(http.StatusOK)
 	// })
@@ -39,7 +48,6 @@ func main() {
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
-
 	log.Fatal(srv.ListenAndServe())
 
 	// res, _ := createSingleDayEvent(
