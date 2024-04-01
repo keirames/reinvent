@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	github.com/gorilla/mux v1.8.1
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/crypto v0.21.0 // indirect
