@@ -1,20 +1,43 @@
 package main
 
 import (
+	"context"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func TestMain(t *testing.T) {
+	ctx := context.Background()
+	req := testcontainers.ContainerRequest{
+		Image:        "postgres:latest",
+		ExposedPorts: []string{"5432/tcp"},
+		Env: map[string]string{
+			"POSTGRES_PASSWORD": "12345678",
+		},
+		WaitingFor: wait.ForLog("database system is ready to accept connections"),
+	}
+	postgresC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		log.Fatalf("Could not start postgres: %s", err)
+	}
+	defer func() {
+		if err := postgresC.Terminate(ctx); err != nil {
+			log.Fatalf("Could not stop postgres: %s", err)
+		}
+	}()
+
 	r := mux.NewRouter()
 	r.HandleFunc("/", HelloHandler)
-	// r.HandleFunc("/create-single-event", func(w http.ResponseWriter, r *http.Request) {
-	// 	w.WriteHeader(http.StatusOK)
-	// })
 
 	srv := &http.Server{
 		Handler: r,
@@ -24,10 +47,10 @@ func TestMain(t *testing.T) {
 		ReadTimeout:  15 * time.Second,
 	}
 
-	req, _ := http.NewRequest("GET", "/", nil)
+	request, _ := http.NewRequest("GET", "/", nil)
 	rr := httptest.NewRecorder()
-	srv.Handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusForbidden {
-		t.Errorf("Expected response code %d. Got %d\n", http.StatusForbidden, rr.Code)
+	srv.Handler.ServeHTTP(rr, request)
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected response code %d. Got %d\n", http.StatusOK, rr.Code)
 	}
 }
