@@ -2,8 +2,6 @@ module main
 
 go 1.21.4
 
-require github.com/jackc/pgx v3.6.2+incompatible
-
 require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
