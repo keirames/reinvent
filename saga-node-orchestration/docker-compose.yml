@@ -6,8 +6,8 @@ services:
     db:
         image: postgres
         hostname: postgres
-        networks:
-            - app-tier
+        # networks:
+        #     - app-tier
         restart: always
         ports:
             - 5432:5432
@@ -28,8 +28,8 @@ services:
             - 9092:9092
             - 9093:9093
             - 9094:9094
-        networks:
-            - app-tier
+        # networks:
+        #     - app-tier
         environment:
             - KAFKA_CFG_NODE_ID=0
             - KAFKA_CFG_PROCESS_ROLES=controller,broker
