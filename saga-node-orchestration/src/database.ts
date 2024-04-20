@@ -3,7 +3,7 @@ import { Generated, Kysely, PostgresDialect } from 'kysely';
 
 interface OrcOrdersTable {
     id: Generated<number>;
-    state: 'pending' | 'paid' | 'delivered';
+    state: 'pending' | 'paid' | 'delivered' | 'cancelled';
 }
 
 interface Database {

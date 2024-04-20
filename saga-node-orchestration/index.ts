@@ -2,30 +2,16 @@ import express, { json } from 'express';
 import { db } from './src/database';
 import { sql } from 'kysely';
 import { Kafka } from 'kafkajs';
+import {
+    Topic,
+    listenToBillOrderEvent,
+    listenToOrderPaidEvent,
+    listenToOrderPlacedEvent,
+    listenToOrderRejectedEvent,
+    waitFor,
+} from './utils';
 
 const app = express();
-
-async function waitFor(ms: number) {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve(1);
-        }, ms);
-    });
-}
-
-// type Topic =
-//     | 'bill_order'
-//     | 'ship_order'
-//     | 'order_placed'
-//     | 'order_paid'
-//     | 'order_delivered';
-const Topic = {
-    BillOrder: 'bill_order',
-    ShipOrder: 'ship_order',
-    OrderPlaced: 'order_placed',
-    OrderPaid: 'order_paid',
-    OrderDelivered: 'order_delivered',
-};
 
 async function initTopicUntilSuccess(kafka: Kafka) {
     console.log('init kafka topic');
@@ -43,6 +29,7 @@ async function initTopicUntilSuccess(kafka: Kafka) {
                         { topic: Topic.OrderPaid, numPartitions: 5 },
                         { topic: Topic.ShipOrder, numPartitions: 5 },
                         { topic: Topic.OrderDelivered, numPartitions: 5 },
+                        { topic: Topic.OrderRejected, numPartitions: 5 },
                     ],
                 });
             } catch (err) {
@@ -70,80 +57,28 @@ async function main() {
     });
     await initTopicUntilSuccess(kafka);
 
-    const consumer = kafka.consumer({ groupId: 'orchestrator' });
-    await consumer.connect();
-    await consumer.subscribe({
-        topic: Topic.OrderPlaced,
-    });
-    await consumer.run({
-        autoCommit: false,
-        eachMessage: async ({
-            topic,
-            partition,
-            message,
-            heartbeat,
-            pause,
-        }) => {
-            console.log({
-                key: message?.key?.toString(),
-                value: message?.value?.toString(),
-                headers: message.headers,
-            });
-            await consumer.commitOffsets([
-                { topic: Topic.OrderPlaced, offset: message.offset, partition },
-            ]);
+    await listenToOrderPlacedEvent();
 
-            const producer = kafka.producer();
-            await producer.connect();
-            await producer.send({
-                topic: Topic.BillOrder,
-                messages: [{ key: '1', value: message.value }],
-            });
-        },
-    });
+    await listenToBillOrderEvent();
 
-    const consumer1 = kafka.consumer({ groupId: 'payment' });
-    await consumer1.connect();
-    await consumer1.subscribe({
-        topic: Topic.BillOrder,
-    });
-    await consumer1.run({
-        autoCommit: false,
-        eachMessage: async ({
-            topic,
-            partition,
-            message,
-            heartbeat,
-            pause,
-        }) => {
-            console.log('processing bill order...');
-            console.log({
-                key: message?.key?.toString(),
-                value: message?.value?.toString(),
-                headers: message.headers,
-            });
-            await consumer.commitOffsets([
-                { topic: Topic.BillOrder, offset: message.offset, partition },
-            ]);
+    await listenToOrderPaidEvent();
 
-            const producer = kafka.producer();
-            await producer.connect();
-            await producer.send({
-                topic: Topic.OrderPaid,
-                messages: [{ key: '1', value: message.value }],
-            });
-        },
-    });
+    await listenToOrderRejectedEvent();
 
     await sql`create table if not exists orc_orders (
         id serial primary key,
-        state text check (state in ('pending', 'paid', 'delivered'))
+        state text check (state in ('pending', 'paid', 'delivered', 'cancelled'))
     )`.execute(db);
 
     app.use(json());
 
     app.get('/', async (req, res) => {
         res.send('hello');
+    });
+
+    app.get('/orders', async (req, res) => {
+        const orders = await db.selectFrom('orc_orders').selectAll().execute();
+        res.send(orders);
     });
 
     app.get('/order', async (req, res) => {
