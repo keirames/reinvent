@@ -1,16 +1,16 @@
 version: '3.4'
 
-networks:
-    app-tier:
-        driver: bridge
+# networks:
+#     app-tier:
+#         driver: bridge
 
 services:
     db:
-        image: postgres
-        hostname: postgres
-        networks:
-            - app-tier
-        restart: always
+        image: debezium/postgres:15
+        # hostname: postgres
+        # networks:
+        #     - app-tier
+        # restart: always
         ports:
             - 5432:5432
         # set shared memory limit when using docker-compose
@@ -23,9 +23,10 @@ services:
         #      size: 134217728 # 128*2^20 bytes = 128Mb
         environment:
             POSTGRES_PASSWORD: password
+
     eventstore.db:
         image: eventstore/eventstore:23.10.1-alpha-arm64v8
-        hostname: eventstore
+        # hostname: eventstore
         environment:
             - EVENTSTORE_CLUSTER_SIZE=1
             - EVENTSTORE_RUN_PROJECTIONS=All
@@ -45,23 +46,60 @@ services:
             - type: volume
               source: eventstore-volume-logs
               target: /var/log/eventstore
-    # kafka:
-    #     image: bitnami/kafka
-    #     hostname: kafka
-    #     ports:
-    #         - 9092:9092
-    #         - 9093:9093
-    #         - 9094:9094
-    #     networks:
-    #         - app-tier
-    #     environment:
-    #         - KAFKA_CFG_NODE_ID=0
-    #         - KAFKA_CFG_PROCESS_ROLES=controller,broker
-    #         - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
-    #         - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-    #         - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
-    #         - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
-    #         - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+
+    kafka:
+        image: bitnami/kafka
+        # hostname: kafka
+        ports:
+            - 9092:9092
+            - 9093:9093
+            - 9094:9094
+        # networks:
+        #     - app-tier
+        environment:
+            - KAFKA_CFG_NODE_ID=0
+            - KAFKA_CFG_PROCESS_ROLES=controller,broker
+            - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+            - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+            - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+            - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+            - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+
+    debezium:
+        image: debezium/connect:2.6.1.Final
+        ports:
+            - '8083:8083'
+        environment:
+            - GROUP_ID=1
+            - CONFIG_STORAGE_TOPIC=connect_configs
+            - OFFSET_STORAGE_TOPIC=connect_offsets
+            - BOOTSTRAP_SERVERS=kafka:9092
+            - KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+            - VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+            - CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL=http://schema-registry:8081
+            - CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL=http://schema-registry:8081
+        depends_on:
+            - kafka
+
+    schema-registry:
+        image: bitnami/schema-registry
+        ports:
+            - '8081:8081'
+            - '8082:8082'
+        depends_on:
+            - kafka
+        environment:
+            - SCHEMA_REGISTRY_KAFKA_BROKERS=PLAINTEXT://kafka:9092
+            - SCHEMA_REGISTRY_HOST_NAME=schema-registry
+            # - SCHEMA_REGISTRY_LISTENERS=http://0.0.0.0:8081,https://0.0.0.0:8082
+            - SCHEMA_REGISTRY_LISTENERS=http://0.0.0.0:8081
+            # - SCHEMA_REGISTRY_SSL_KEYSTORE_PASSWORD=keystore
+            # - SCHEMA_REGISTRY_SSL_TRUSTSTORE_PASSWORD=keystore
+            # - SCHEMA_REGISTRY_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM=none
+            # - SCHEMA_REGISTRY_CLIENT_AUTHENTICATION=REQUESTED
+        # volumes:
+        #     - ./keystore.jks:/opt/bitnami/schema-registry/certs/keystore.jks:ro
+        #     - ./truststore.jks:/opt/bitnami/schema-registry/certs/truststore.jks:ro
     # order:
     #     build: .
     #     ports:
