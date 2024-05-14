@@ -4,7 +4,7 @@ import "fmt"
 
 var (
 	// default order of a tree
-	order = 4
+	order = 3
 )
 
 var (
@@ -30,7 +30,7 @@ type Node struct {
 	// is this node act as a leaf
 	IsLeaf bool
 
-	Pointers []any
+	Pointers []*Node
 
 	Parent *Node
 
@@ -111,35 +111,38 @@ func findLeaf(t *Tree, key int) (*Node, error) {
 	return n, nil
 }
 
-func (t *Tree) Insert(key int, verbose bool) (*Node, error) {
-	i := 0
-	n := t.Root
-	if n == nil {
-		if verbose {
-			fmt.Println("Empty tree.")
-		}
-
-		return nil, fmt.Errorf("Empty tree.")
+func (t *Tree) find(key int) error {
+	cur := t.Root
+	if cur == nil {
+		return EmptyTreeErr
 	}
 
-	for !n.IsLeaf {
-		i = 0
-		for i < n.NumKeys {
-			// right bias
-			if key >= n.Keys[i] {
-				i++
-			} else {
-				break
+	// loop until cur is leaf
+	for !cur.IsLeaf {
+		for i := range cur.NumKeys - 1 {
+			if cur.Keys[i] >= key {
+				// right bias
+				cur = cur.Pointers[i+1]
 			}
 		}
+	}
 
-		n, ok := n.Pointers[i].(*Node)
-		if !ok {
-			return nil, fmt.Errorf("Pointer is nil")
-		} else {
-			return n, nil
+	for i := range cur.NumKeys - 1 {
+		if cur.Keys[i] == key {
+			return nil
 		}
 	}
 
-	return nil, fmt.Errorf("Not Found.")
+	return NodeNotFound
+}
+
+func (t *Tree) Insert(key int) (*Node, error) {
+	if t.Root == nil {
+		t.Root = makeLeaf()
+		t.Root.NumKeys++
+
+		return t.Root, nil
+	}
+
+	return nil, fmt.Errorf("")
 }
