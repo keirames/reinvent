@@ -13,6 +13,7 @@ var (
 var (
 	EmptyTreeErr = fmt.Errorf("Empty tree.")
 	NodeNotFound = fmt.Errorf("Node not found.")
+	DupKeyErr    = fmt.Errorf("Key already exists.")
 )
 
 type Tree struct {
@@ -174,12 +175,33 @@ func (t *Tree) Insert(key int) (*Node, error) {
 		tempArr := make([]int, leaf.NumKeys)
 		copy(tempArr, leaf.Keys)
 
-		// TODO: key is not duplicated ?
+		if IsDup(leaf.Keys, key) {
+			return nil, DupKeyErr
+		}
+
 		leaf.NumKeys++
 		leaf.Keys = InsertIntoSortedArray(leaf.Keys, key)
 	} else {
-		// need split & rebalance
-		// TODO: split & rebalance
+		// splitting
+		tempArr := make([]int, leaf.NumKeys)
+		copy(tempArr, leaf.Keys)
+		tempArr = InsertIntoSortedArray(tempArr, key)
+
+		mid := len(tempArr) / 2
+
+		leaf.Keys = tempArr[0:mid]
+		leaf.NumKeys = len(leaf.Keys)
+		prevNext := leaf.Next
+
+		newLeaf := makeLeaf()
+		newLeaf.Keys = tempArr[mid:]
+		newLeaf.NumKeys = len(newLeaf.Keys)
+
+		// linking
+		leaf.Next = newLeaf
+		newLeaf.Next = prevNext
+
+		// lift up to parent
 	}
 
 	return nil, fmt.Errorf("")
@@ -192,4 +214,14 @@ func InsertIntoSortedArray(arr []int, n int) []int {
 	arr[i] = n
 
 	return arr
+}
+
+func IsDup(arr []int, n int) bool {
+	for _, num := range arr {
+		if num == n {
+			return true
+		}
+	}
+
+	return false
 }
