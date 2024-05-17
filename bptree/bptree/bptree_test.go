@@ -1,6 +1,7 @@
 package bptree
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -175,5 +176,19 @@ func TestFindKeyInComplexTree(t *testing.T) {
 	err = tree.Find(0)
 	if err != NodeNotFound {
 		t.Errorf("test find key failed, expected %q got %q", NodeNotFound, err)
+	}
+}
+
+func TestInsertIntoEmptyTree(t *testing.T) {
+	tree := New()
+	keyVal := 1
+	n, _ := tree.Insert(keyVal)
+	fmt.Println(n)
+	if n.Keys[0] != keyVal {
+		t.Errorf("test failed, expected key %q got %q", keyVal, n.Keys[0])
+	}
+
+	if n.NumKeys != 1 {
+		t.Errorf("test failed, expected nums keys %q got %q", 1, n.NumKeys)
 	}
 }

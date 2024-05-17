@@ -155,9 +155,10 @@ func (t *Tree) Find(key int) error {
 }
 
 func (t *Tree) Insert(key int) (*Node, error) {
-	// empty tree
+	// empty tree, create new tree
 	if t.Root == nil {
 		t.Root = makeLeaf()
+		t.Root.Keys[0] = key
 		t.Root.NumKeys++
 
 		return t.Root, nil
@@ -188,6 +189,7 @@ func (t *Tree) Insert(key int) (*Node, error) {
 		tempArr = InsertIntoSortedArray(tempArr, key)
 
 		mid := len(tempArr) / 2
+		dupKey := tempArr[mid]
 
 		leaf.Keys = tempArr[0:mid]
 		leaf.NumKeys = len(leaf.Keys)
@@ -202,6 +204,23 @@ func (t *Tree) Insert(key int) (*Node, error) {
 		newLeaf.Next = prevNext
 
 		// lift up to parent
+		// * case: no parent
+		if leaf.Parent == nil {
+			parent := makeNode()
+			leaf.Parent = parent
+			newLeaf.Parent = parent
+
+			parent.NumKeys = 1
+			parent.Keys[0] = dupKey
+			parent.Pointers[0] = leaf
+			parent.Pointers[1] = newLeaf
+
+			return nil, fmt.Errorf("")
+		}
+
+		// * case: has parent - parent doesn't need split
+
+		// * case: has parent - parent need split
 	}
 
 	return nil, fmt.Errorf("")
