@@ -11,9 +11,10 @@ var (
 )
 
 var (
-	EmptyTreeErr = fmt.Errorf("Empty tree.")
-	NodeNotFound = fmt.Errorf("Node not found.")
-	DupKeyErr    = fmt.Errorf("Key already exists.")
+	EmptyTreeErr      = fmt.Errorf("Empty tree.")
+	TreeIsNotEmptyErr = fmt.Errorf("Tree is not empty")
+	NodeNotFound      = fmt.Errorf("Node not found.")
+	DupKeyErr         = fmt.Errorf("Key already exists.")
 )
 
 type Tree struct {
@@ -154,14 +155,22 @@ func (t *Tree) Find(key int) error {
 	return NodeNotFound
 }
 
+func (t *Tree) makeNewTree(key int) error {
+	if t.Root != nil {
+		return TreeIsNotEmptyErr
+	}
+
+	t.Root = makeLeaf()
+	t.Root.Keys[0] = key
+	t.Root.NumKeys += 1
+
+	return nil
+}
+
 func (t *Tree) Insert(key int) error {
 	// empty tree, create new tree
 	if t.Root == nil {
-		t.Root = makeLeaf()
-		t.Root.Keys[0] = key
-		t.Root.NumKeys++
-
-		return nil
+		return t.makeNewTree(key)
 	}
 
 	err := t.Find(key)
@@ -215,6 +224,10 @@ func insertIntoLeafAfterSplitting(leaf *Node, key int) {
 	newLeaf.Next = prevNext
 
 	// lift up to parent
+	insertIntoParent(leaf, newLeaf, dupKey)
+}
+
+func insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 	// * case: no parent
 	if leaf.Parent == nil {
 		parent := makeNode()
@@ -222,16 +235,175 @@ func insertIntoLeafAfterSplitting(leaf *Node, key int) {
 		newLeaf.Parent = parent
 
 		parent.NumKeys = 1
-		parent.Keys[0] = dupKey
+		parent.Keys[0] = key
 		parent.Pointers[0] = leaf
 		parent.Pointers[1] = newLeaf
 
-		return nil
+		return
 	}
 
 	// * case: has parent - parent doesn't need split
+	parent := leaf.Parent
+	if parent.NumKeys < order-1 {
+		idx := -1
+		for i, n := range parent.Keys {
+			if n > key {
+				idx = i
+				break
+			}
+		}
+
+		// insert into first
+		if idx == 0 {
+			newKeys := []int{}
+			newKeys = append(newKeys, key)
+
+			for _, n := range parent.Keys {
+				newKeys = append(newKeys, n)
+			}
+
+			newPointers := []*Node{}
+			newPointers = append(newPointers, leaf)
+			newPointers = append(newPointers, newLeaf)
+
+			for i, p := range parent.Pointers {
+				if i == 0 {
+					continue
+				}
+
+				newPointers = append(newPointers, p)
+			}
+
+			parent.Keys = newKeys
+			parent.Pointers = newPointers
+
+			return
+		}
+
+		// insert to last
+		if idx == -1 {
+			parent.Keys = append(parent.Keys, key)
+			parent.Pointers = append(parent.Pointers, newLeaf)
+
+			return
+		}
+
+		// insert into middle
+		newKeys := InsertIntoSortedArray(parent.Keys, key)
+		newPointers := []*Node{}
+
+		for i, p := range parent.Pointers {
+			newPointers = append(newPointers, p)
+
+			if i == idx {
+				newPointers = append(newPointers, newLeaf)
+			}
+		}
+
+		parent.Keys = newKeys
+		parent.Pointers = newPointers
+
+		return
+	}
 
 	// * case: has parent - parent need split
+	// TODO: Rearrange keys is easy task, rearrange pointer arr is hard
+	// TODO: Refactor rearrange key in 1 time on every case
+	// numKeysOverflow := InsertIntoSortedArray(parent.Keys, key)
+	// mid := len(numKeysOverflow) / 2
+	newKeys := InsertIntoSortedArray(parent.Keys, key)
+	idx := -1
+	for i, n := range parent.Keys {
+		if n > key {
+			idx = i
+			break
+		}
+	}
+
+	newPointers := []*Node{}
+
+	//* insert into first
+	if idx == 0 {
+		newPointers = append(newPointers, leaf)
+		newPointers = append(newPointers, newLeaf)
+
+		for i, p := range parent.Pointers {
+			if i == 0 {
+				continue
+			}
+
+			newPointers = append(newPointers, p)
+		}
+	}
+
+	//* insert into last
+	if idx == -1 {
+		for _, p := range parent.Pointers {
+			newPointers = append(newPointers, p)
+		}
+
+		newPointers = append(newPointers, newLeaf)
+	}
+
+	//* insert into middle
+	if idx != 0 || idx != -1 {
+		for i, p := range parent.Pointers {
+			newPointers = append(newPointers, p)
+
+			if i == idx {
+				newPointers = append(newPointers, newLeaf)
+			}
+		}
+	}
+
+	//* splitting
+	newParent := makeNode()
+	newParent.Keys[0] = newKeys[idx]
+	newParent.NumKeys += 1
+
+	// TODO: how to clean reference up ?
+	newLeftNode := makeNode()
+	newRightNode := makeNode()
+	leftNodeKeys := []int{}
+	rightNodeKeys := []int{}
+	leftNodePointers := []*Node{}
+	rightNodePointers := []*Node{}
+
+	for i := range len(newKeys) {
+		if i == idx {
+			continue
+		}
+
+		if i < idx {
+			leftNodeKeys = append(leftNodeKeys, newKeys[i])
+			continue
+		}
+
+		rightNodeKeys = append(rightNodeKeys, newKeys[i])
+	}
+
+	newLeftNode.Keys = leftNodeKeys
+	newLeftNode.NumKeys = len(leftNodeKeys)
+
+	newRightNode.Keys = rightNodeKeys
+	newRightNode.NumKeys = len(rightNodeKeys)
+
+	newLeftNode.Next = newRightNode
+
+	newLeftNode.Parent = newParent
+	newRightNode.Parent = newParent
+
+	for i, p := range newPointers {
+		// include idx
+		if i <= idx {
+			leftNodePointers = append(leftNodePointers, p)
+			continue
+		}
+
+		rightNodePointers = append(rightNodePointers, p)
+	}
+
+	// TODO: stuck, insertIntoParent from leaf different w insertIntoParent from node
 }
 
 func InsertIntoSortedArray(arr []int, n int) []int {
