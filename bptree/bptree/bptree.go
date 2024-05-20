@@ -154,76 +154,84 @@ func (t *Tree) Find(key int) error {
 	return NodeNotFound
 }
 
-func (t *Tree) Insert(key int) (*Node, error) {
+func (t *Tree) Insert(key int) error {
 	// empty tree, create new tree
 	if t.Root == nil {
 		t.Root = makeLeaf()
 		t.Root.Keys[0] = key
 		t.Root.NumKeys++
 
-		return t.Root, nil
+		return nil
+	}
+
+	err := t.Find(key)
+	if err != nil {
+		return DupKeyErr
 	}
 
 	// insert into leaf node
 	leaf, err := t.FindLeaf(key)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	// leaf node still has space
 	if leaf.NumKeys < order-1 {
-		// TODO: is there a way to insert into arr with less code ?
-		tempArr := make([]int, leaf.NumKeys)
-		copy(tempArr, leaf.Keys)
-
-		if IsDup(leaf.Keys, key) {
-			return nil, DupKeyErr
-		}
-
-		leaf.NumKeys++
-		leaf.Keys = InsertIntoSortedArray(leaf.Keys, key)
-	} else {
-		// splitting
-		tempArr := make([]int, leaf.NumKeys)
-		copy(tempArr, leaf.Keys)
-		tempArr = InsertIntoSortedArray(tempArr, key)
-
-		mid := len(tempArr) / 2
-		dupKey := tempArr[mid]
-
-		leaf.Keys = tempArr[0:mid]
-		leaf.NumKeys = len(leaf.Keys)
-		prevNext := leaf.Next
-
-		newLeaf := makeLeaf()
-		newLeaf.Keys = tempArr[mid:]
-		newLeaf.NumKeys = len(newLeaf.Keys)
-
-		// linking
-		leaf.Next = newLeaf
-		newLeaf.Next = prevNext
-
-		// lift up to parent
-		// * case: no parent
-		if leaf.Parent == nil {
-			parent := makeNode()
-			leaf.Parent = parent
-			newLeaf.Parent = parent
-
-			parent.NumKeys = 1
-			parent.Keys[0] = dupKey
-			parent.Pointers[0] = leaf
-			parent.Pointers[1] = newLeaf
-
-			return nil, fmt.Errorf("")
-		}
-
-		// * case: has parent - parent doesn't need split
-
-		// * case: has parent - parent need split
+		insertIntoLeaf(leaf, key)
+		return nil
 	}
 
-	return nil, fmt.Errorf("")
+	insertIntoLeafAfterSplitting(leaf, key)
+
+	return nil
+}
+
+func insertIntoLeaf(leaf *Node, key int) {
+	tempArr := make([]int, leaf.NumKeys)
+	copy(tempArr, leaf.Keys)
+
+	leaf.NumKeys++
+	leaf.Keys = InsertIntoSortedArray(leaf.Keys, key)
+}
+func insertIntoLeafAfterSplitting(leaf *Node, key int) {
+	// splitting
+	tempArr := make([]int, leaf.NumKeys)
+	copy(tempArr, leaf.Keys)
+	tempArr = InsertIntoSortedArray(tempArr, key)
+
+	mid := len(tempArr) / 2
+	dupKey := tempArr[mid]
+
+	leaf.Keys = tempArr[0:mid]
+	leaf.NumKeys = len(leaf.Keys)
+	prevNext := leaf.Next
+
+	newLeaf := makeLeaf()
+	newLeaf.Keys = tempArr[mid:]
+	newLeaf.NumKeys = len(newLeaf.Keys)
+
+	// linking
+	leaf.Next = newLeaf
+	newLeaf.Next = prevNext
+
+	// lift up to parent
+	// * case: no parent
+	if leaf.Parent == nil {
+		parent := makeNode()
+		leaf.Parent = parent
+		newLeaf.Parent = parent
+
+		parent.NumKeys = 1
+		parent.Keys[0] = dupKey
+		parent.Pointers[0] = leaf
+		parent.Pointers[1] = newLeaf
+
+		return nil
+	}
+
+	// * case: has parent - parent doesn't need split
+
+	// * case: has parent - parent need split
 }
 
 func InsertIntoSortedArray(arr []int, n int) []int {
