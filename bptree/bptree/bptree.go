@@ -190,7 +190,7 @@ func (t *Tree) Insert(key int) error {
 		return nil
 	}
 
-	insertIntoLeafAfterSplitting(leaf, key)
+	t.insertIntoLeafAfterSplitting(leaf, key)
 
 	return nil
 }
@@ -202,7 +202,8 @@ func insertIntoLeaf(leaf *Node, key int) {
 	leaf.NumKeys++
 	leaf.Keys = InsertIntoSortedArray(leaf.Keys, key)
 }
-func insertIntoLeafAfterSplitting(leaf *Node, key int) {
+
+func (t *Tree) insertIntoLeafAfterSplitting(leaf *Node, key int) {
 	// splitting
 	tempArr := make([]int, leaf.NumKeys)
 	copy(tempArr, leaf.Keys)
@@ -224,10 +225,10 @@ func insertIntoLeafAfterSplitting(leaf *Node, key int) {
 	newLeaf.Next = prevNext
 
 	// lift up to parent
-	insertIntoParent(leaf, newLeaf, dupKey)
+	t.insertIntoParent(leaf, newLeaf, dupKey)
 }
 
-func insertIntoParent(leaf *Node, newLeaf *Node, key int) {
+func (t *Tree) insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 	// * case: no parent
 	if leaf.Parent == nil {
 		parent := makeNode()
@@ -357,10 +358,6 @@ func insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 	}
 
 	//* splitting
-	newParent := makeNode()
-	newParent.Keys[0] = newKeys[idx]
-	newParent.NumKeys += 1
-
 	// TODO: how to clean reference up ?
 	newLeftNode := makeNode()
 	newRightNode := makeNode()
@@ -390,8 +387,8 @@ func insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 
 	newLeftNode.Next = newRightNode
 
-	newLeftNode.Parent = newParent
-	newRightNode.Parent = newParent
+	newLeftNode.Parent = parent.Parent
+	newRightNode.Parent = parent.Parent
 
 	for i, p := range newPointers {
 		// include idx
@@ -403,7 +400,99 @@ func insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 		rightNodePointers = append(rightNodePointers, p)
 	}
 
-	// TODO: stuck, insertIntoParent from leaf different w insertIntoParent from node
+	t.insertIntoParentFromInternalNode(newLeftNode, newRightNode, newKeys[idx])
+}
+
+func (t *Tree) insertIntoParentFromInternalNode(
+	leftNode *Node,
+	rightNode *Node,
+	liftKey int,
+) {
+	//* case: no parent
+	if leftNode.Parent == nil {
+		newParent := makeNode()
+		newParent.Keys[0] = liftKey
+		newParent.NumKeys += 1
+
+		leftNode.Parent = newParent
+		rightNode.Parent = newParent
+
+		t.Root = newParent
+
+		return
+	}
+
+	//* case: parent has space
+	if leftNode.Parent.NumKeys < order-1 {
+		parent := leftNode.Parent
+
+		idx := -1
+		for i, n := range parent.Keys {
+			if n > liftKey {
+				idx = i
+				break
+			}
+		}
+
+		parent.Keys = InsertIntoSortedArray(parent.Keys, liftKey)
+		parent.NumKeys += 1
+
+		// insert into first
+		if idx == 0 {
+			newPointers := []*Node{}
+			newPointers = append(newPointers, leftNode)
+			newPointers = append(newPointers, rightNode)
+
+			for i, p := range parent.Pointers {
+				if i == 0 {
+					continue
+				}
+
+				newPointers = append(newPointers, p)
+			}
+
+			parent.Pointers = newPointers
+
+			return
+		}
+
+		// insert into last
+		if idx == -1 {
+			parent.Pointers[parent.NumKeys] = rightNode
+			parent.Pointers[parent.NumKeys-1] = leftNode
+
+			return
+		}
+
+		// insert into middle
+		newPointers := []*Node{}
+		for i, p := range parent.Pointers {
+			if i == idx {
+				newPointers = append(newPointers, leftNode)
+				newPointers = append(newPointers, rightNode)
+			}
+
+			newPointers = append(newPointers, p)
+		}
+
+		parent.Pointers = newPointers
+
+		return
+	}
+
+	//* case: parent need split & lift key up
+	idx := -1
+	parent := leftNode.Parent
+	for i, n := range parent.Keys {
+		if n > liftKey {
+			idx = i
+			break
+		}
+	}
+
+	if idx == 0 {
+		// ! what the fuck i'm so confusing
+	}
 }
 
 func InsertIntoSortedArray(arr []int, n int) []int {
