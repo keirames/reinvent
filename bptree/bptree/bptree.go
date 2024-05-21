@@ -184,6 +184,7 @@ func (t *Tree) Insert(key int) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println(key, leaf)
 
 	// leaf node still has space
 	if leaf.NumKeys < order-1 {
@@ -275,7 +276,7 @@ func (t *Tree) Traversal() {
 		l := len(sq.q)
 		for range l {
 			n := sq.Pop()
-			fmt.Println(n.Keys)
+			fmt.Println(n.Keys, n.Pointers)
 
 			for _, p := range n.Pointers {
 				if p == nil {
@@ -289,28 +290,33 @@ func (t *Tree) Traversal() {
 	}
 }
 
-func (t *Tree) insertIntoParent(leaf *Node, newLeaf *Node, key int) {
+func (t *Tree) insertIntoParent(leftNode *Node, rightNode *Node, key int) {
+	// left node & right node 's parent is the same
+	curNode := leftNode.Parent
+
 	// * case: no parent
-	if leaf.Parent == nil {
-		parent := makeNode()
-		leaf.Parent = parent
-		newLeaf.Parent = parent
+	if curNode == nil {
+		fmt.Println("no parent, create parent")
+		n := makeNode()
+		leftNode.Parent = n
+		rightNode.Parent = n
 
-		parent.NumKeys = 1
-		parent.Keys = append(parent.Keys, key)
-		parent.Pointers[0] = leaf
-		parent.Pointers[1] = newLeaf
+		n.NumKeys = 1
+		n.Keys = append(n.Keys, key)
+		n.Pointers[0] = leftNode
+		n.Pointers[1] = rightNode
 
-		t.Root = parent
+		t.Root = n
 
 		return
 	}
 
 	// * case: has parent - parent doesn't need split
-	parent := leaf.Parent
-	if parent.NumKeys < order-1 {
+	if curNode.NumKeys < order-1 {
+		fmt.Println("key", key)
+		fmt.Println("has parent, parent dont need split", curNode.Keys, curNode.NumKeys)
 		idx := -1
-		for i, n := range parent.Keys {
+		for i, n := range curNode.Keys {
 			if n > key {
 				idx = i
 				break
@@ -322,15 +328,15 @@ func (t *Tree) insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 			newKeys := []int{}
 			newKeys = append(newKeys, key)
 
-			for _, n := range parent.Keys {
+			for _, n := range curNode.Keys {
 				newKeys = append(newKeys, n)
 			}
 
 			newPointers := []*Node{}
-			newPointers = append(newPointers, leaf)
-			newPointers = append(newPointers, newLeaf)
+			newPointers = append(newPointers, leftNode)
+			newPointers = append(newPointers, rightNode)
 
-			for i, p := range parent.Pointers {
+			for i, p := range curNode.Pointers {
 				if i == 0 {
 					continue
 				}
@@ -338,34 +344,34 @@ func (t *Tree) insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 				newPointers = append(newPointers, p)
 			}
 
-			parent.Keys = newKeys
-			parent.Pointers = newPointers
+			curNode.Keys = newKeys
+			curNode.Pointers = newPointers
 
 			return
 		}
 
 		// insert to last
 		if idx == -1 {
-			parent.Keys = append(parent.Keys, key)
-			parent.Pointers = append(parent.Pointers, newLeaf)
+			curNode.Keys = append(curNode.Keys, key)
+			curNode.Pointers = append(curNode.Pointers, rightNode)
 
 			return
 		}
 
 		// insert into middle
-		newKeys := InsertIntoSortedArray(parent.Keys, key)
+		newKeys := InsertIntoSortedArray(curNode.Keys, key)
 		newPointers := []*Node{}
 
-		for i, p := range parent.Pointers {
+		for i, p := range curNode.Pointers {
 			newPointers = append(newPointers, p)
 
 			if i == idx {
-				newPointers = append(newPointers, newLeaf)
+				newPointers = append(newPointers, rightNode)
 			}
 		}
 
-		parent.Keys = newKeys
-		parent.Pointers = newPointers
+		curNode.Keys = newKeys
+		curNode.Pointers = newPointers
 
 		return
 	}
@@ -376,9 +382,9 @@ func (t *Tree) insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 	// TODO: Refactor rearrange key in 1 time on every case
 	// numKeysOverflow := InsertIntoSortedArray(parent.Keys, key)
 	// mid := len(numKeysOverflow) / 2
-	newKeys := InsertIntoSortedArray(parent.Keys, key)
+	newKeys := InsertIntoSortedArray(curNode.Keys, key)
 	idx := -1
-	for i, n := range parent.Keys {
+	for i, n := range curNode.Keys {
 		if n > key {
 			idx = i
 			break
@@ -389,10 +395,10 @@ func (t *Tree) insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 
 	//* insert into first
 	if idx == 0 {
-		newPointers = append(newPointers, leaf)
-		newPointers = append(newPointers, newLeaf)
+		newPointers = append(newPointers, leftNode)
+		newPointers = append(newPointers, rightNode)
 
-		for i, p := range parent.Pointers {
+		for i, p := range curNode.Pointers {
 			if i == 0 {
 				continue
 			}
@@ -403,20 +409,20 @@ func (t *Tree) insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 
 	//* insert into last
 	if idx == -1 {
-		for _, p := range parent.Pointers {
+		for _, p := range curNode.Pointers {
 			newPointers = append(newPointers, p)
 		}
 
-		newPointers = append(newPointers, newLeaf)
+		newPointers = append(newPointers, rightNode)
 	}
 
 	//* insert into middle
 	if idx != 0 || idx != -1 {
-		for i, p := range parent.Pointers {
+		for i, p := range curNode.Pointers {
 			newPointers = append(newPointers, p)
 
 			if i == idx {
-				newPointers = append(newPointers, newLeaf)
+				newPointers = append(newPointers, rightNode)
 			}
 		}
 	}
@@ -451,8 +457,8 @@ func (t *Tree) insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 
 	newLeftNode.Next = newRightNode
 
-	newLeftNode.Parent = parent.Parent
-	newRightNode.Parent = parent.Parent
+	newLeftNode.Parent = curNode.Parent
+	newRightNode.Parent = curNode.Parent
 
 	for i, p := range newPointers {
 		// include idx
