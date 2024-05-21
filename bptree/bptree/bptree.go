@@ -54,7 +54,7 @@ func calcKeysInNode(treeOrder int) int {
 
 func makeNode() *Node {
 	n := new(Node)
-	n.Keys = make([]int, calcKeysInNode(order))
+	n.Keys = make([]int, 0)
 	n.Pointers = make([]*Node, order)
 	n.IsLeaf = false
 	n.Parent = nil
@@ -161,7 +161,7 @@ func (t *Tree) makeNewTree(key int) error {
 	}
 
 	t.Root = makeLeaf()
-	t.Root.Keys[0] = key
+	t.Root.Keys = append(t.Root.Keys, key)
 	t.Root.NumKeys += 1
 
 	return nil
@@ -173,10 +173,11 @@ func (t *Tree) Insert(key int) error {
 		return t.makeNewTree(key)
 	}
 
-	err := t.Find(key)
-	if err != nil {
-		return DupKeyErr
-	}
+	// TODO: not accept duplicate
+	// err := t.Find(key)
+	// if err != nil {
+	// 	return DupKeyErr
+	// }
 
 	// insert into leaf node
 	leaf, err := t.FindLeaf(key)
@@ -196,16 +197,17 @@ func (t *Tree) Insert(key int) error {
 }
 
 func insertIntoLeaf(leaf *Node, key int) {
-	tempArr := make([]int, leaf.NumKeys)
-	copy(tempArr, leaf.Keys)
-
+	// tempArr := make([]int, leaf.NumKeys+1)
+	// fmt.Println(tempArr)
+	// copy(tempArr, leaf.Keys)
+	// fmt.Println(tempArr)
 	leaf.NumKeys++
 	leaf.Keys = InsertIntoSortedArray(leaf.Keys, key)
 }
 
 func (t *Tree) insertIntoLeafAfterSplitting(leaf *Node, key int) {
 	// splitting
-	tempArr := make([]int, leaf.NumKeys)
+	tempArr := make([]int, len(leaf.Keys))
 	copy(tempArr, leaf.Keys)
 	tempArr = InsertIntoSortedArray(tempArr, key)
 
@@ -224,8 +226,67 @@ func (t *Tree) insertIntoLeafAfterSplitting(leaf *Node, key int) {
 	leaf.Next = newLeaf
 	newLeaf.Next = prevNext
 
+	fmt.Println(leaf.Keys, newLeaf.Keys, dupKey)
+
 	// lift up to parent
 	t.insertIntoParent(leaf, newLeaf, dupKey)
+}
+
+type SimpleQueue struct {
+	q []*Node
+}
+
+func NewSimpleQueue() *SimpleQueue {
+	return &SimpleQueue{
+		q: []*Node{},
+	}
+}
+
+func (sq *SimpleQueue) Push(n *Node) {
+	sq.q = append(sq.q, n)
+}
+
+func (sq *SimpleQueue) Pop() *Node {
+	popNode := sq.q[0]
+	newQ := []*Node{}
+
+	for i, n := range sq.q {
+		if i == 0 {
+			continue
+		}
+
+		newQ = append(newQ, n)
+	}
+
+	sq.q = newQ
+
+	return popNode
+}
+
+func (t *Tree) Traversal() {
+	if t.Root == nil {
+		fmt.Printf("empty tree!")
+		return
+	}
+
+	sq := NewSimpleQueue()
+	sq.Push(t.Root)
+	for len(sq.q) != 0 {
+		l := len(sq.q)
+		for range l {
+			n := sq.Pop()
+			fmt.Println(n.Keys)
+
+			for _, p := range n.Pointers {
+				if p == nil {
+					continue
+				}
+
+				sq.Push(p)
+			}
+		}
+		fmt.Println("---")
+	}
 }
 
 func (t *Tree) insertIntoParent(leaf *Node, newLeaf *Node, key int) {
@@ -236,9 +297,11 @@ func (t *Tree) insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 		newLeaf.Parent = parent
 
 		parent.NumKeys = 1
-		parent.Keys[0] = key
+		parent.Keys = append(parent.Keys, key)
 		parent.Pointers[0] = leaf
 		parent.Pointers[1] = newLeaf
+
+		t.Root = parent
 
 		return
 	}
@@ -307,6 +370,7 @@ func (t *Tree) insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 		return
 	}
 
+	fmt.Println("has parent parent need split")
 	// * case: has parent - parent need split
 	// TODO: Rearrange keys is easy task, rearrange pointer arr is hard
 	// TODO: Refactor rearrange key in 1 time on every case
@@ -400,7 +464,8 @@ func (t *Tree) insertIntoParent(leaf *Node, newLeaf *Node, key int) {
 		rightNodePointers = append(rightNodePointers, p)
 	}
 
-	t.insertIntoParentFromInternalNode(newLeftNode, newRightNode, newKeys[idx])
+	// t.insertIntoParent(newLeftNode, newRightNode, newKeys[idx])
+	// t.insertIntoParentFromInternalNode(newLeftNode, newRightNode, newKeys[idx])
 }
 
 func (t *Tree) insertIntoParentFromInternalNode(
@@ -496,10 +561,8 @@ func (t *Tree) insertIntoParentFromInternalNode(
 }
 
 func InsertIntoSortedArray(arr []int, n int) []int {
-	i := sort.SearchInts(arr, n)
-	arr = append(arr, 0)
-	copy(arr[i+1:], arr[i:])
-	arr[i] = n
+	arr = append(arr, n)
+	sort.Ints(arr)
 
 	return arr
 }
