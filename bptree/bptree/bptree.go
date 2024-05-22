@@ -170,6 +170,7 @@ func (t *Tree) makeNewTree(key int) error {
 func (t *Tree) Insert(key int) error {
 	// empty tree, create new tree
 	if t.Root == nil {
+		fmt.Println("empty tree, make new tree")
 		return t.makeNewTree(key)
 	}
 
@@ -184,7 +185,7 @@ func (t *Tree) Insert(key int) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(key, leaf)
+	fmt.Println("valid leaf for key: ", key, leaf.Keys)
 
 	// leaf node still has space
 	if leaf.NumKeys < order-1 {
@@ -226,6 +227,9 @@ func (t *Tree) insertIntoLeafAfterSplitting(leaf *Node, key int) {
 	// linking
 	leaf.Next = newLeaf
 	newLeaf.Next = prevNext
+
+	// parent
+	newLeaf.Parent = leaf.Parent
 
 	fmt.Println(leaf.Keys, newLeaf.Keys, dupKey)
 
@@ -276,7 +280,14 @@ func (t *Tree) Traversal() {
 		l := len(sq.q)
 		for range l {
 			n := sq.Pop()
-			fmt.Println(n.Keys, n.Pointers)
+			fmt.Println(n.Keys, n.Pointers, n.Parent)
+			for _, p := range n.Pointers {
+				if p == nil {
+					// fmt.Print("nil ")
+					continue
+				}
+				// fmt.Print(p.Keys)
+			}
 
 			for _, p := range n.Pointers {
 				if p == nil {
@@ -315,6 +326,8 @@ func (t *Tree) insertIntoParent(leftNode *Node, rightNode *Node, key int) {
 	if curNode.NumKeys < order-1 {
 		fmt.Println("key", key)
 		fmt.Println("has parent, parent dont need split", curNode.Keys, curNode.NumKeys)
+		curNode.NumKeys += 1
+
 		idx := -1
 		for i, n := range curNode.Keys {
 			if n > key {
@@ -325,6 +338,7 @@ func (t *Tree) insertIntoParent(leftNode *Node, rightNode *Node, key int) {
 
 		// insert into first
 		if idx == 0 {
+			fmt.Println("has parent, insert into first")
 			newKeys := []int{}
 			newKeys = append(newKeys, key)
 
@@ -352,13 +366,17 @@ func (t *Tree) insertIntoParent(leftNode *Node, rightNode *Node, key int) {
 
 		// insert to last
 		if idx == -1 {
+			fmt.Println("has parent, insert into last")
 			curNode.Keys = append(curNode.Keys, key)
-			curNode.Pointers = append(curNode.Pointers, rightNode)
+			// curNode.Pointers = append(curNode.Pointers, rightNode)
+			// TODO: curnode numkeys complex here, if curnode is updated, no need + 1
+			curNode.Pointers[curNode.NumKeys] = rightNode
 
 			return
 		}
 
 		// insert into middle
+		fmt.Println("has parent, insert into middle")
 		newKeys := InsertIntoSortedArray(curNode.Keys, key)
 		newPointers := []*Node{}
 
@@ -409,15 +427,24 @@ func (t *Tree) insertIntoParent(leftNode *Node, rightNode *Node, key int) {
 
 	//* insert into last
 	if idx == -1 {
+		fmt.Println("has parent, parent need split, insert into last")
+		fmt.Println("key", newKeys)
 		for _, p := range curNode.Pointers {
 			newPointers = append(newPointers, p)
 		}
 
+		fmt.Println("pointers", curNode.Pointers)
 		newPointers = append(newPointers, rightNode)
+		fmt.Println("new pointers", newPointers)
+		fmt.Println("---explain new pointers---")
+		for _, p := range newPointers {
+			fmt.Println(p.Keys)
+		}
+		fmt.Println("---end---")
 	}
 
 	//* insert into middle
-	if idx != 0 || idx != -1 {
+	if idx != 0 && idx != -1 {
 		for i, p := range curNode.Pointers {
 			newPointers = append(newPointers, p)
 
@@ -426,6 +453,12 @@ func (t *Tree) insertIntoParent(leftNode *Node, rightNode *Node, key int) {
 			}
 		}
 	}
+
+	midKeyIdx := (curNode.NumKeys + 1) / 2
+	fmt.Println("internal node", curNode.Keys, curNode.NumKeys)
+	fmt.Println("new internal node", newKeys, curNode.NumKeys+1)
+	fmt.Println("mid key idx is", midKeyIdx)
+	fmt.Println("mid key val is", newKeys[midKeyIdx])
 
 	//* splitting
 	// TODO: how to clean reference up ?
@@ -437,11 +470,11 @@ func (t *Tree) insertIntoParent(leftNode *Node, rightNode *Node, key int) {
 	rightNodePointers := []*Node{}
 
 	for i := range len(newKeys) {
-		if i == idx {
+		if i == midKeyIdx {
 			continue
 		}
 
-		if i < idx {
+		if i < midKeyIdx {
 			leftNodeKeys = append(leftNodeKeys, newKeys[i])
 			continue
 		}
@@ -455,22 +488,36 @@ func (t *Tree) insertIntoParent(leftNode *Node, rightNode *Node, key int) {
 	newRightNode.Keys = rightNodeKeys
 	newRightNode.NumKeys = len(rightNodeKeys)
 
-	newLeftNode.Next = newRightNode
+	// newLeftNode.Next = newRightNode
 
-	newLeftNode.Parent = curNode.Parent
-	newRightNode.Parent = curNode.Parent
+	// newLeftNode.Parent = curNode.Parent
+	// newRightNode.Parent = curNode.Parent
 
 	for i, p := range newPointers {
-		// include idx
-		if i <= idx {
+		// include midKeyIdx
+		if i <= midKeyIdx {
 			leftNodePointers = append(leftNodePointers, p)
 			continue
 		}
 
 		rightNodePointers = append(rightNodePointers, p)
 	}
+	newLeftNode.Pointers = leftNodePointers
+	newRightNode.Pointers = rightNodePointers
 
-	// t.insertIntoParent(newLeftNode, newRightNode, newKeys[idx])
+	fmt.Println("new left node", newLeftNode.Keys, newLeftNode.Pointers)
+	fmt.Println(newPointers)
+	fmt.Println("new right node", newRightNode.Keys, newRightNode.Pointers)
+
+	// change parent of child node
+	for _, p := range newRightNode.Pointers {
+		p.Parent = newRightNode
+	}
+	for _, p := range newLeftNode.Pointers {
+		p.Parent = newLeftNode
+	}
+
+	t.insertIntoParent(newLeftNode, newRightNode, newKeys[midKeyIdx])
 	// t.insertIntoParentFromInternalNode(newLeftNode, newRightNode, newKeys[idx])
 }
 
