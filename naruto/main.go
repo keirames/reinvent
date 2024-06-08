@@ -10,39 +10,66 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func connect() *amqp.Connection {
-	conn, err := amqp.Dial("amqp://user:pass@localhost:5672/")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("rabbitmq connected")
+func exponentialBackoff[V *amqp.Connection | *redis.Client](
+	cb func() (V, error),
+) (V, error) {
+	waitSec := 0
+	for {
+		v, err := cb()
+		if err != nil {
+			return v, nil
+		}
+		if waitSec > 10 {
+			return nil, err
+		}
 
-	return conn
+		waitSec += 2
+		time.Sleep(time.Second * time.Duration(waitSec))
+	}
 }
 
-func connectRedis() *redis.Client {
+func connectRabbitMQ() (*amqp.Connection, error) {
+	conn, err := exponentialBackoff(func() (*amqp.Connection, error) {
+		return amqp.Dial("amqp://user:pass@localhost:5672/")
+	})
+	if err != nil {
+		fmt.Println("rabbitmq connection fail")
+		return nil, err
+	}
+
+	fmt.Println("rabbitmq connected")
+	return conn, nil
+}
+
+func connectRedis() (*redis.Client, error) {
 	opt, err := redis.ParseURL("redis://localhost:6379/jobs")
 	if err != nil {
-		panic(err)
+		fmt.Println("fail to parse redis options")
+		return nil, err
 	}
 
 	client := redis.NewClient(opt)
-	fmt.Println("redis connected")
 
-	return client
+	return client, nil
 }
 
 func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	conn := connect()
-	defer conn.Close()
+	rmqConn, err := connectRabbitMQ()
+	if err != nil {
+		panic(err)
+	}
+	defer rmqConn.Close()
 
-	redisConn := connectRedis()
+	redisConn, err := connectRedis()
+	if err != nil {
+		panic(err)
+	}
 	defer redisConn.Close()
 
-	ch, err := conn.Channel()
+	ch, err := rmqConn.Channel()
 	if err != nil {
 		panic(err)
 	}
