@@ -1,13 +1,20 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
+	"main/sync"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type RabbitMQ struct {
 	conn *amqp.Connection
+}
+
+type Message struct {
+	Type string
 }
 
 func New() (*RabbitMQ, error) {
@@ -56,6 +63,24 @@ func (r *RabbitMQ) Consume() {
 	}
 
 	for d := range msgs {
+		var m Message
+		err := json.Unmarshal(d.Body, &m)
+		if err != nil {
+			fmt.Println("unknown message, skip")
+			continue
+		}
+
+		executor, err := sync.GetExecutorByToken(m.Type)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		err = executor.Execute()
+		if err != nil {
+			//! don't commit
+			continue
+		}
+
 		log.Printf("Received a message: %s", d.Body)
 	}
 }

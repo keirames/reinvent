@@ -3,8 +3,8 @@ package sync
 import "fmt"
 
 type SyncTarget interface {
-	getToken() string
-	execute()
+	GetToken() string
+	Execute() error
 }
 
 type AccountTarget struct {
@@ -14,11 +14,11 @@ func NewAccountTarget() *AccountTarget {
 	return new(AccountTarget)
 }
 
-func (at *AccountTarget) execute() {
+func (at *AccountTarget) Execute() {
 	fmt.Println("account sync execute")
 }
 
-func (at *AccountTarget) getToken() string {
+func (at *AccountTarget) GetToken() string {
 	return "Account"
 }
 
@@ -29,11 +29,11 @@ func NewValueTarget() *ValueTarget {
 	return new(ValueTarget)
 }
 
-func (vt *ValueTarget) execute() {
+func (vt *ValueTarget) Execute() {
 	fmt.Println("value sync execute")
 }
 
-func (vt *ValueTarget) getToken() string {
+func (vt *ValueTarget) GetToken() string {
 	return "Value"
 }
 
