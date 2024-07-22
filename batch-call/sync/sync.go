@@ -14,8 +14,9 @@ func NewAccountTarget() *AccountTarget {
 	return new(AccountTarget)
 }
 
-func (at *AccountTarget) Execute() {
+func (at *AccountTarget) Execute() error {
 	fmt.Println("account sync execute")
+	return nil
 }
 
 func (at *AccountTarget) GetToken() string {
@@ -29,8 +30,9 @@ func NewValueTarget() *ValueTarget {
 	return new(ValueTarget)
 }
 
-func (vt *ValueTarget) Execute() {
+func (vt *ValueTarget) Execute() error {
 	fmt.Println("value sync execute")
+	return nil
 }
 
 func (vt *ValueTarget) GetToken() string {
