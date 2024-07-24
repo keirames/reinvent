@@ -3,7 +3,7 @@ package sync
 import "fmt"
 
 type SyncTarget interface {
-	GetToken() string
+	CanHandle(t string) bool
 	Execute() error
 }
 
@@ -19,8 +19,8 @@ func (at *AccountTarget) Execute() error {
 	return nil
 }
 
-func (at *AccountTarget) GetToken() string {
-	return "Account"
+func (at *AccountTarget) CanHandle(t string) bool {
+	return t == "Account"
 }
 
 type ValueTarget struct {
@@ -35,19 +35,25 @@ func (vt *ValueTarget) Execute() error {
 	return nil
 }
 
-func (vt *ValueTarget) GetToken() string {
-	return "Value"
+func (vt *ValueTarget) CanHandle(t string) bool {
+	return t == "Value"
 }
 
 func GetExecutorByToken(token string) (SyncTarget, error) {
-	m := make(map[string]SyncTarget)
+	arr := []SyncTarget{}
 
-	m["Account"] = NewAccountTarget()
-	m["Value"] = NewValueTarget()
+	arr = append(arr, NewAccountTarget())
+	arr = append(arr, NewValueTarget())
 
-	handler, ok := m[token]
-	if !ok {
-		return nil, fmt.Errorf("unknown token %v", token)
+	var handler SyncTarget
+	for _, t := range arr {
+		if t.CanHandle(token) {
+			handler = t
+			break
+		}
+	}
+	if handler == nil {
+		fmt.Println("no handler found!")
 	}
 
 	return handler, nil
