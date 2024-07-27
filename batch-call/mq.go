@@ -30,6 +30,41 @@ func New() (*RabbitMQ, error) {
 	return r, nil
 }
 
+func (r *RabbitMQ) publish100Msg() error {
+	ch, err := r.conn.Channel()
+	if err != nil {
+		return err
+	}
+
+	q, err := ch.QueueDeclare(
+		"hello", // name
+		false,   // durable
+		false,   // delete when unused
+		false,   // exclusive
+		false,   // no-wait
+		nil,     // arguments
+	)
+	if err != nil {
+		panic(err)
+	}
+	for range 100 {
+		err = ch.Publish(
+			"",     // exchange
+			q.Name, // routing key
+			false,  // mandatory
+			false,  // immediate
+			amqp.Publishing{
+				ContentType: "text/plain",
+				Body:        []byte("hello"),
+			})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (r *RabbitMQ) Consume() {
 	ch, err := r.conn.Channel()
 	if err != nil {
@@ -52,7 +87,7 @@ func (r *RabbitMQ) Consume() {
 	msgs, err := ch.Consume(
 		q.Name, // queue
 		"",     // consumer
-		true,   // auto-ack
+		false,  // auto-ack
 		false,  // exclusive
 		false,  // no-local
 		false,  // no-wait
@@ -67,6 +102,10 @@ func (r *RabbitMQ) Consume() {
 		err := json.Unmarshal(d.Body, &m)
 		if err != nil {
 			fmt.Println("unknown message, skip")
+			err = d.Ack(false)
+			if err != nil {
+				fmt.Println("ack somehow failed", err)
+			}
 			continue
 		}
 
@@ -82,5 +121,9 @@ func (r *RabbitMQ) Consume() {
 		}
 
 		log.Printf("Received a message: %s", d.Body)
+		err = d.Ack(false)
+		if err != nil {
+			fmt.Println("ack somehow failed", err)
+		}
 	}
 }
