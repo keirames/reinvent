@@ -1,11 +1,32 @@
 package pool
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 )
 
-var DefaultNumsOfWorkers = 10
+var DefaultNumsOfWorkers = 100
+var ErrWorkerIsNil = errors.New("worker is nil")
+
+// Worker the task executor
+type Worker struct {
+	pool *Pool
+	task chan func()
+}
+
+func (w *Worker) run() {
+	w.pool.numsOfRunningWorkers++
+	fmt.Println(w.pool.numsOfRunningWorkers)
+	go func() {
+		for t := range w.task {
+			if t == nil {
+				return
+			}
+			t()
+		}
+	}()
+}
 
 type Queue struct {
 	items []func()
@@ -25,16 +46,21 @@ func (q *Queue) GetLength() int {
 }
 
 type Pool struct {
-	numsOfWorkers     int
-	numsOfIdleWorkers int
-	queue             Queue
-	mu                sync.Mutex
+	capacity             int
+	numsOfWorkers        int
+	numsOfIdleWorkers    int
+	numsOfRunningWorkers int
+	queue                Queue
+	workers              []Worker
+	mu                   sync.Mutex
 }
 
 func New() *Pool {
 	p := new(Pool)
 	p.numsOfWorkers = DefaultNumsOfWorkers
 	p.numsOfIdleWorkers = DefaultNumsOfWorkers
+	p.capacity = DefaultNumsOfWorkers
+	p.numsOfRunningWorkers = 0
 
 	return p
 }
@@ -51,28 +77,35 @@ func (p *Pool) DescNumsOfIdleWorkers() {
 	p.mu.Unlock()
 }
 
-func (p *Pool) Submit(f func()) error {
-	p.queue.Enqueue(f)
-	fmt.Println(p.queue)
-	fmt.Println(p.queue.GetLength())
+func (p *Pool) retrieveWorker() *Worker {
 	//p.mu.Lock()
-	//fmt.Println(p.numsOfIdleWorkers)
-	//if p.numsOfIdleWorkers <= 0 {
-	//	p.mu.Unlock()
-	//	return fmt.Errorf("bad state")
-	//}
-	//p.mu.Unlock()
-	//
-	//go func() {
-	//	defer func() {
-	//		p.IncNumsOfIdleWorkers()
-	//	}()
-	//
-	//	p.DescNumsOfIdleWorkers()
-	//
-	//	f()
-	//	fmt.Println("Job done")
-	//}()
+
+	if p.capacity > p.numsOfRunningWorkers {
+		// still has enough room
+		//p.mu.Unlock()
+
+		// new worker
+		w := new(Worker)
+		w.pool = p
+		w.task = make(chan func())
+		w.run()
+
+		return w
+	} else {
+		// wait for worker released
+	}
+
+	return nil
+}
+
+func (p *Pool) Submit(f func()) error {
+	w := p.retrieveWorker()
+	if w == nil {
+		return ErrWorkerIsNil
+	}
+
+	// assign task
+	w.task <- f
 
 	return nil
 }

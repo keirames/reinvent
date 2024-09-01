@@ -19,10 +19,11 @@ import (
 func main() {
 	p := pool.New()
 
-	for i := range 20 {
+	for i := range 100 {
 		err := p.Submit(func() {
-			fmt.Printf("I'm number %v", i)
-			time.Sleep(time.Second * 1)
+			fmt.Printf("I'm number %v executed\n", i)
+			//time.Sleep(time.Second * 1)
+			fmt.Printf("I'm number %v done\n", i)
 		})
 
 		if err != nil {
@@ -30,5 +31,5 @@ func main() {
 		}
 	}
 
-	time.Sleep(time.Second * 10)
+	time.Sleep(time.Second * 5)
 }
