@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-var DefaultNumsOfWorkers = 100
+var DefaultNumsOfWorkers = 5
 var ErrWorkerIsNil = errors.New("worker is nil")
 
 // Worker the task executor
@@ -19,6 +19,10 @@ func (w *Worker) run() {
 	w.pool.numsOfRunningWorkers++
 	fmt.Println(w.pool.numsOfRunningWorkers)
 	go func() {
+		defer func() {
+			w.pool.cond.Signal()
+		}()
+
 		for t := range w.task {
 			if t == nil {
 				return
@@ -53,6 +57,7 @@ type Pool struct {
 	queue                Queue
 	workers              []Worker
 	mu                   sync.Mutex
+	cond                 *sync.Cond
 }
 
 func New() *Pool {
@@ -61,6 +66,7 @@ func New() *Pool {
 	p.numsOfIdleWorkers = DefaultNumsOfWorkers
 	p.capacity = DefaultNumsOfWorkers
 	p.numsOfRunningWorkers = 0
+	p.cond = sync.NewCond(&p.mu)
 
 	return p
 }
@@ -78,11 +84,11 @@ func (p *Pool) DescNumsOfIdleWorkers() {
 }
 
 func (p *Pool) retrieveWorker() *Worker {
-	//p.mu.Lock()
+	p.cond.L.Lock()
 
 	if p.capacity > p.numsOfRunningWorkers {
 		// still has enough room
-		//p.mu.Unlock()
+		p.cond.L.Unlock()
 
 		// new worker
 		w := new(Worker)
@@ -93,6 +99,10 @@ func (p *Pool) retrieveWorker() *Worker {
 		return w
 	} else {
 		// wait for worker released
+		// block and wait for available worker
+		fmt.Println("block and wait")
+		p.cond.Wait()
+		fmt.Println("release blocker")
 	}
 
 	return nil

@@ -19,7 +19,7 @@ import (
 func main() {
 	p := pool.New()
 
-	for i := range 100 {
+	for i := range 10 {
 		err := p.Submit(func() {
 			fmt.Printf("I'm number %v executed\n", i)
 			//time.Sleep(time.Second * 1)
