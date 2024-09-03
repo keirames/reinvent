@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-var DefaultNumsOfWorkers = 5
+var DefaultNumsOfWorkers = 1000
 var ErrWorkerIsNil = errors.New("worker is nil")
 
 // Worker the task executor
