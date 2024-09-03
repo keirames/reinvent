@@ -16,7 +16,10 @@ type Worker struct {
 }
 
 func (w *Worker) run() {
+	w.pool.mu.Lock()
 	w.pool.numsOfRunningWorkers++
+	w.pool.mu.Unlock()
+
 	go func() {
 		defer func() {
 			w.pool.mu.Lock()
@@ -88,7 +91,7 @@ func (p *Pool) DescNumsOfIdleWorkers() {
 }
 
 func (p *Pool) retrieveWorker() *Worker {
-	p.cond.L.Lock()
+	p.mu.Lock()
 
 	if p.capacity > p.numsOfRunningWorkers {
 		// still has enough room
