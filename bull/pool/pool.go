@@ -17,9 +17,12 @@ type Worker struct {
 
 func (w *Worker) run() {
 	w.pool.numsOfRunningWorkers++
-	fmt.Println(w.pool.numsOfRunningWorkers)
 	go func() {
 		defer func() {
+			w.pool.mu.Lock()
+			w.pool.numsOfRunningWorkers--
+			w.pool.mu.Unlock()
+
 			w.pool.cond.Signal()
 		}()
 
@@ -28,6 +31,7 @@ func (w *Worker) run() {
 				return
 			}
 			t()
+			break
 		}
 	}()
 }
@@ -103,6 +107,14 @@ func (p *Pool) retrieveWorker() *Worker {
 		fmt.Println("block and wait")
 		p.cond.Wait()
 		fmt.Println("release blocker")
+		p.cond.L.Unlock()
+
+		w := new(Worker)
+		w.pool = p
+		w.task = make(chan func())
+		w.run()
+
+		return w
 	}
 
 	return nil

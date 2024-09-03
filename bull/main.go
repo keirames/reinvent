@@ -22,7 +22,7 @@ func main() {
 	for i := range 10 {
 		err := p.Submit(func() {
 			fmt.Printf("I'm number %v executed\n", i)
-			//time.Sleep(time.Second * 1)
+			time.Sleep(time.Second * 1)
 			fmt.Printf("I'm number %v done\n", i)
 		})
 
