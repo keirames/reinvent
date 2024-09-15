@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-var DefaultNumsOfWorkers = 100
+var DefaultNumsOfWorkers = 10000
 var ErrWorkerIsNil = errors.New("worker is nil")
 
 // Worker the task executor
@@ -24,6 +24,10 @@ func (w *Worker) run() {
 				return
 			}
 			t()
+
+			w.pool.mu.Lock()
+			w.pool.numsOfRunningWorkers--
+			w.pool.mu.Unlock()
 		}
 	}()
 }
@@ -77,30 +81,27 @@ func (p *Pool) DescNumsOfIdleWorkers() {
 	p.mu.Unlock()
 }
 
-func (p *Pool) retrieveWorker() *Worker {
-	//p.mu.Lock()
+func newWorker(p *Pool) *Worker {
+	w := new(Worker)
+	w.pool = p
+	w.task = make(chan func())
+	w.run()
 
-	if p.capacity > p.numsOfRunningWorkers {
-		// still has enough room
-		//p.mu.Unlock()
+	return w
+}
 
-		// new worker
-		w := new(Worker)
-		w.pool = p
-		w.task = make(chan func())
-		w.run()
-
-		return w
-	} else {
-		// wait for worker released
+func (p *Pool) retrieveWorker() (*Worker, error) {
+	if p.numsOfRunningWorkers == p.capacity {
+		return nil, fmt.Errorf("pool is full")
 	}
 
-	return nil
+	w := newWorker(p)
+	return w, nil
 }
 
 func (p *Pool) Submit(f func()) error {
-	w := p.retrieveWorker()
-	if w == nil {
+	w, err := p.retrieveWorker()
+	if err != nil || w == nil {
 		return ErrWorkerIsNil
 	}
 
