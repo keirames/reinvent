@@ -16,9 +16,19 @@ type Worker struct {
 }
 
 func (w *Worker) run() {
+	w.pool.mu.Lock()
 	w.pool.numsOfRunningWorkers++
-	fmt.Println(w.pool.numsOfRunningWorkers)
+	w.pool.mu.Unlock()
+
 	go func() {
+		defer func() {
+			w.pool.mu.Lock()
+			w.pool.numsOfRunningWorkers--
+			w.pool.mu.Unlock()
+
+			w.pool.cond.Signal()
+		}()
+
 		for t := range w.task {
 			if t == nil {
 				return
@@ -57,6 +67,7 @@ type Pool struct {
 	queue                Queue
 	workers              []Worker
 	mu                   sync.Mutex
+	cond                 *sync.Cond
 }
 
 func New() *Pool {
@@ -65,6 +76,7 @@ func New() *Pool {
 	p.numsOfIdleWorkers = DefaultNumsOfWorkers
 	p.capacity = DefaultNumsOfWorkers
 	p.numsOfRunningWorkers = 0
+	p.cond = sync.NewCond(&p.mu)
 
 	return p
 }
