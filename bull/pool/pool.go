@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-var DefaultNumsOfWorkers = 10000
+var DefaultNumsOfWorkers = 20000
 var ErrWorkerIsNil = errors.New("worker is nil")
 
 // Worker the task executor
@@ -18,14 +18,11 @@ type Worker struct {
 func (w *Worker) run() {
 	w.pool.mu.Lock()
 	w.pool.numsOfRunningWorkers++
+	fmt.Println(w.pool.numsOfRunningWorkers)
 	w.pool.mu.Unlock()
 
 	go func() {
 		defer func() {
-			w.pool.mu.Lock()
-			w.pool.numsOfRunningWorkers--
-			w.pool.mu.Unlock()
-
 			w.pool.cond.Signal()
 		}()
 
@@ -38,6 +35,8 @@ func (w *Worker) run() {
 			w.pool.mu.Lock()
 			w.pool.numsOfRunningWorkers--
 			w.pool.mu.Unlock()
+
+			w.pool.workerCache.Put(w)
 		}
 	}()
 }
@@ -68,6 +67,7 @@ type Pool struct {
 	workers              []Worker
 	mu                   sync.Mutex
 	cond                 *sync.Cond
+	workerCache          *sync.Pool
 }
 
 func New() *Pool {
@@ -77,6 +77,7 @@ func New() *Pool {
 	p.capacity = DefaultNumsOfWorkers
 	p.numsOfRunningWorkers = 0
 	p.cond = sync.NewCond(&p.mu)
+	p.workerCache = &sync.Pool{}
 
 	return p
 }
@@ -94,11 +95,19 @@ func (p *Pool) DescNumsOfIdleWorkers() {
 }
 
 func newWorker(p *Pool) *Worker {
-	w := new(Worker)
-	w.pool = p
-	w.task = make(chan func())
-	w.run()
+	w, ok := p.workerCache.Get().(*Worker)
+	if !ok {
+		w := new(Worker)
+		w.pool = p
+		w.task = make(chan func())
+		w.run()
 
+		return w
+	}
+
+	p.mu.Lock()
+	p.numsOfRunningWorkers++
+	p.mu.Unlock()
 	return w
 }
 
@@ -113,8 +122,8 @@ func (p *Pool) retrieveWorker() (*Worker, error) {
 
 func (p *Pool) Submit(f func()) error {
 	w, err := p.retrieveWorker()
-	if err != nil || w == nil {
-		return ErrWorkerIsNil
+	if err != nil {
+		return err
 	}
 
 	// assign task

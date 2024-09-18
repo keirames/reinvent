@@ -48,7 +48,7 @@ func main() {
 	execTicker := time.NewTicker(100 * time.Microsecond)
 	defer execTicker.Stop()
 
-	timeoutTicker := time.After(10 * time.Minute)
+	timeoutTicker := time.After(10 * time.Second)
 
 	for {
 		select {
@@ -68,7 +68,7 @@ func main() {
 			}
 			fmt.Println("Memory profile saved to mem.prof")
 
-			fmt.Printf("Done %v jobs \n", counter)
+			fmt.Printf("Done %v jobs \n", atomic.LoadInt64(&counter))
 			return
 		}
 	}
