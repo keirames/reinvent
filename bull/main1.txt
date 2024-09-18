@@ -30,7 +30,7 @@ func randomNumber(min int, max int) int {
 	return randomNum
 }
 
-func main() {
+func main2() {
 	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("print hello")
 		_, err := w.Write([]byte("hello"))
