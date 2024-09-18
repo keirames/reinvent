@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"main/pool"
 	"math/rand"
+	"net/http"
 	"os"
 	"runtime/pprof"
 	"sync/atomic"
@@ -30,6 +31,23 @@ func randomNumber(min int, max int) int {
 }
 
 func main() {
+	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("print hello")
+		_, err := w.Write([]byte("hello"))
+		if err != nil {
+			fmt.Println(err)
+		}
+	})
+
+	fmt.Println("listening on localhost:6969")
+	err := http.ListenAndServe(":6969", nil)
+	if err != nil {
+		fmt.Println(err)
+		panic("cannot start server")
+	}
+}
+
+func main1() {
 	f, err := os.Create("mem.prof")
 	if err != nil {
 		fmt.Println("Could not create memory profile:", err)
