@@ -4,7 +4,7 @@ metadata:
   name: my-app
   namespace: staging
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: my-app
@@ -16,14 +16,14 @@ spec:
       containers:
         - name: my-app
           imagePullPolicy: IfNotPresent
-          image: server:1.0.0
+          image: server:latest
           ports:
             - name: http
               containerPort: 8080
           resources:
             requests:
-              cpu: 10m
-              memory: 16Mi
+              cpu: 100m
+              memory: 512Mi
             limits:
-              cpu: 20m
-              memory: 32Mi
+              cpu: 200m
+              memory: 512Mi

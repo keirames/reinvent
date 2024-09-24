@@ -18,22 +18,19 @@
 #
 #ENTRYPOINT ["/main"]
 
-FROM golang:1.22.2-alpine3.19 AS build
+FROM golang:1.22.2-alpine3.19 AS build-stage
 
 WORKDIR /app
 
-COPY go.mod ./
-COPY go.sum ./
+COPY . .
 
-RUN go mod download && go mod verify
+RUN go mod download
 
-COPY server.go ./
-
-RUN go build -o /my-app server.go
+RUN go build -o /my-app .
 
 #FROM gcr.io/distroless/base-debian11
 FROM alpine:latest
 
-COPY --from=build /my-app /my-app
+COPY --from=build-stage /my-app /my-app
 
 ENTRYPOINT ["/my-app"]
