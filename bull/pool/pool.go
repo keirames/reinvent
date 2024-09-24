@@ -4,9 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
-var DefaultNumsOfWorkers = 20000
+var DefaultNumsOfWorkers = 10
 var ErrWorkerIsNil = errors.New("worker is nil")
 
 // Worker the task executor
@@ -15,11 +16,17 @@ type Worker struct {
 	task chan func()
 }
 
+func (w *Worker) incRunningWorkers() {
+	w.pool.numsOfRunningWorkers.Add(1)
+}
+
+func (w *Worker) descRunningWorkers() {
+	w.pool.numsOfRunningWorkers.Add(-1)
+}
+
 func (w *Worker) run() {
-	w.pool.mu.Lock()
-	w.pool.numsOfRunningWorkers++
-	fmt.Println(w.pool.numsOfRunningWorkers)
-	w.pool.mu.Unlock()
+	w.incRunningWorkers()
+	fmt.Println(w.pool.numsOfRunningWorkers.Load())
 
 	go func() {
 		defer func() {
@@ -32,9 +39,7 @@ func (w *Worker) run() {
 			}
 			t()
 
-			w.pool.mu.Lock()
-			w.pool.numsOfRunningWorkers--
-			w.pool.mu.Unlock()
+			w.descRunningWorkers()
 
 			w.pool.workerCache.Put(w)
 		}
@@ -62,7 +67,7 @@ type Pool struct {
 	capacity             int
 	numsOfWorkers        int
 	numsOfIdleWorkers    int
-	numsOfRunningWorkers int
+	numsOfRunningWorkers atomic.Int32
 	queue                Queue
 	workers              []Worker
 	mu                   sync.Mutex
@@ -72,10 +77,9 @@ type Pool struct {
 
 func New() *Pool {
 	p := new(Pool)
-	p.numsOfWorkers = DefaultNumsOfWorkers
-	p.numsOfIdleWorkers = DefaultNumsOfWorkers
+	p.numsOfWorkers = 0
+	p.numsOfRunningWorkers.Store(0)
 	p.capacity = DefaultNumsOfWorkers
-	p.numsOfRunningWorkers = 0
 	p.cond = sync.NewCond(&p.mu)
 	p.workerCache = &sync.Pool{}
 
@@ -105,14 +109,13 @@ func newWorker(p *Pool) *Worker {
 		return w
 	}
 
-	p.mu.Lock()
-	p.numsOfRunningWorkers++
-	p.mu.Unlock()
+	p.numsOfRunningWorkers.Add(1)
+
 	return w
 }
 
 func (p *Pool) retrieveWorker() (*Worker, error) {
-	if p.numsOfRunningWorkers == p.capacity {
+	if p.numsOfRunningWorkers.Load() == int32(p.capacity) {
 		return nil, fmt.Errorf("pool is full")
 	}
 

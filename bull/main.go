@@ -43,4 +43,6 @@ func main() {
 			}
 		}
 	}()
+
+	time.Sleep(time.Hour * 24)
 }
