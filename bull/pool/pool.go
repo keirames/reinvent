@@ -9,6 +9,7 @@ import (
 
 var DefaultNumsOfWorkers = 10
 var ErrWorkerIsNil = errors.New("worker is nil")
+var ErrPoolFull = errors.New("pool is full")
 
 // Worker the task executor
 type Worker struct {
@@ -116,7 +117,7 @@ func newWorker(p *Pool) *Worker {
 
 func (p *Pool) retrieveWorker() (*Worker, error) {
 	if p.numsOfRunningWorkers.Load() == int32(p.capacity) {
-		return nil, fmt.Errorf("pool is full")
+		return nil, ErrPoolFull
 	}
 
 	w := newWorker(p)
