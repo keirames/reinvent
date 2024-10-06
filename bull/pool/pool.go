@@ -31,7 +31,12 @@ func (w *Worker) run() {
 
 	go func() {
 		defer func() {
-			w.pool.cond.Signal()
+			if r := recover(); r != nil {
+				fmt.Println("recovered in f", r)
+			}
+
+			//w.pool.cond.Signal()
+			w.descRunningWorkers()
 		}()
 
 		for t := range w.task {
@@ -119,6 +124,7 @@ func (p *Pool) retrieveWorker() (*Worker, error) {
 	if p.numsOfRunningWorkers.Load() == int32(p.capacity) {
 		return nil, ErrPoolFull
 	}
+	fmt.Println("get worker success")
 
 	w := newWorker(p)
 	return w, nil

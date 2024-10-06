@@ -21,7 +21,7 @@ func main() {
 	p := pool.New()
 	var counter int64 = 0
 
-	execTicker := time.NewTicker(100 * time.Microsecond)
+	execTicker := time.NewTicker(200 * time.Millisecond)
 	defer execTicker.Stop()
 
 	timeoutTicker := time.After(120 * time.Minute)
@@ -33,6 +33,7 @@ func main() {
 				err := p.Submit(func() {
 					time.Sleep(time.Millisecond * time.Duration(randomNumber(1000, 5000)))
 					atomic.AddInt64(&counter, 1)
+					panic("i'm panic")
 				})
 				if err != nil {
 					fmt.Println(err)
