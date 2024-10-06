@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 )
 
-var DefaultNumsOfWorkers = 10
+var DefaultNumOfWorkers = 10
 var ErrWorkerIsNil = errors.New("worker is nil")
 var ErrPoolFull = errors.New("pool is full")
 
@@ -18,16 +18,16 @@ type Worker struct {
 }
 
 func (w *Worker) incRunningWorkers() {
-	w.pool.numsOfRunningWorkers.Add(1)
+	w.pool.numOfRunningWorkers.Add(1)
 }
 
 func (w *Worker) descRunningWorkers() {
-	w.pool.numsOfRunningWorkers.Add(-1)
+	w.pool.numOfRunningWorkers.Add(-1)
 }
 
 func (w *Worker) run() {
 	w.incRunningWorkers()
-	fmt.Println(w.pool.numsOfRunningWorkers.Load())
+	fmt.Println(w.pool.numOfRunningWorkers.Load())
 
 	go func() {
 		defer func() {
@@ -70,37 +70,37 @@ func (q *Queue) GetLength() int {
 }
 
 type Pool struct {
-	capacity             int
-	numsOfWorkers        int
-	numsOfIdleWorkers    int
-	numsOfRunningWorkers atomic.Int32
-	queue                Queue
-	workers              []Worker
-	mu                   sync.Mutex
-	cond                 *sync.Cond
-	workerCache          *sync.Pool
+	capacity            int
+	numOfWorkers        int
+	numOfIdleWorkers    int
+	numOfRunningWorkers atomic.Int32
+	queue               Queue
+	workers             []Worker
+	mu                  sync.Mutex
+	cond                *sync.Cond
+	workerCache         *sync.Pool
 }
 
 func New() *Pool {
 	p := new(Pool)
-	p.numsOfWorkers = 0
-	p.numsOfRunningWorkers.Store(0)
-	p.capacity = DefaultNumsOfWorkers
+	p.numOfWorkers = 0
+	p.numOfRunningWorkers.Store(0)
+	p.capacity = DefaultNumOfWorkers
 	p.cond = sync.NewCond(&p.mu)
 	p.workerCache = &sync.Pool{}
 
 	return p
 }
 
-func (p *Pool) IncNumsOfIdleWorkers() {
+func (p *Pool) IncNumOfIdleWorkers() {
 	p.mu.Lock()
-	p.numsOfIdleWorkers++
+	p.numOfIdleWorkers++
 	p.mu.Unlock()
 }
 
-func (p *Pool) DescNumsOfIdleWorkers() {
+func (p *Pool) DescNumOfIdleWorkers() {
 	p.mu.Lock()
-	p.numsOfIdleWorkers--
+	p.numOfIdleWorkers--
 	p.mu.Unlock()
 }
 
@@ -115,13 +115,13 @@ func newWorker(p *Pool) *Worker {
 		return w
 	}
 
-	p.numsOfRunningWorkers.Add(1)
+	p.numOfRunningWorkers.Add(1)
 
 	return w
 }
 
 func (p *Pool) retrieveWorker() (*Worker, error) {
-	if p.numsOfRunningWorkers.Load() == int32(p.capacity) {
+	if p.numOfRunningWorkers.Load() == int32(p.capacity) {
 		return nil, ErrPoolFull
 	}
 	fmt.Println("get worker success")
