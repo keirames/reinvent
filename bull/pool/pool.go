@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
-var DefaultNumOfWorkers = 10
+var DefaultNumOfWorkers = 1000
 var ErrWorkerIsNil = errors.New("worker is nil")
 var ErrPoolFull = errors.New("pool is full")
 
 // Worker the task executor
 type Worker struct {
-	pool *Pool
-	task chan func()
+	name      string
+	pool      *Pool
+	task      chan func()
+	updatedAt time.Time
 }
 
 func (w *Worker) incRunningWorkers() {
@@ -34,20 +37,45 @@ func (w *Worker) run() {
 			if r := recover(); r != nil {
 				fmt.Println("recovered in f", r)
 			}
+			fmt.Println("destroy worker")
 
 			//w.pool.cond.Signal()
 			w.descRunningWorkers()
+			fmt.Println(w.pool.numOfRunningWorkers.Load())
 		}()
 
+	Restart:
 		for t := range w.task {
 			if t == nil {
 				return
 			}
-			t()
 
-			w.descRunningWorkers()
+			timeout := time.NewTicker(time.Second * 1)
+			done := make(chan bool)
 
-			w.pool.workerCache.Put(w)
+			go func() {
+				t()
+				done <- true
+			}()
+
+			for {
+				select {
+				case <-done:
+					fmt.Println("done job")
+					timeout.Stop()
+					w.descRunningWorkers()
+					w.pool.workerCache.Put(w)
+					fmt.Println("num of running", w.pool.numOfRunningWorkers.Load())
+					goto Restart
+				case <-timeout.C:
+					fmt.Println("timeout, bailed out!")
+					return
+				}
+			}
+
+			// t()
+			// w.descRunningWorkers()
+			// w.pool.workerCache.Put(w)
 		}
 	}()
 }
@@ -111,6 +139,7 @@ func newWorker(p *Pool) *Worker {
 		w.pool = p
 		w.task = make(chan func())
 		w.run()
+		w.name = time.Now().String()
 
 		return w
 	}
@@ -136,6 +165,7 @@ func (p *Pool) Submit(f func()) error {
 		return err
 	}
 
+	fmt.Println("wtf")
 	// assign task
 	w.task <- f
 
