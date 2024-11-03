@@ -31,7 +31,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		url := "http://localhost:6969" + r.URL.Path
+		url := "http://host.docker.internal:6969" + r.URL.Path
 		method := r.Method
 
 		client := &http.Client{}
