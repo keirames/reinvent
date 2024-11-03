@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 )
@@ -52,9 +53,19 @@ func main() {
 			r.Response.StatusCode = 500
 			return
 		}
-		fmt.Println(resp)
+		fmt.Println("response", resp)
 
-		_, err = w.Write([]byte("hello world"))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		r.Response = resp
+		_, err = w.Write(body)
 		if err != nil {
 			panic("why those happen")
 		}
