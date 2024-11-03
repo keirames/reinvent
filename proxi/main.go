@@ -31,22 +31,21 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		headers := r.Header
-		for name, values := range headers {
-			for _, value := range values {
-				fmt.Println(name, value)
-			}
-		}
+		url := "http://localhost:6969" + r.URL.Path
+		method := r.Method
 
 		client := &http.Client{}
-		clientRequest, err := http.NewRequest("GET", "http://localhost:3333", nil)
+		clientRequest, err := http.NewRequest(method, url, nil)
 		if err != nil {
 			fmt.Println("Error when build client http", err)
 			r.Response.StatusCode = 500
 			return
 		}
+
 		// clone all headers
 		clientRequest.Header = r.Header
+		clientRequest.Body = r.Body
+
 		resp, err := client.Do(clientRequest)
 		if err != nil {
 			fmt.Println("Target rejected", err)
@@ -60,8 +59,6 @@ func main() {
 			panic("why those happen")
 		}
 	})
-
-	go targetServer()
 
 	fmt.Println("Server started at http://localhost:" + strconv.Itoa(port))
 
