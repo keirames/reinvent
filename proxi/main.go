@@ -28,10 +28,15 @@ func targetServer() {
 }
 
 func main() {
-	port := 3210
+	port := 3069
 
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello"))
+	})
+
+	mux.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		url := "http://host.docker.internal:6969" + r.URL.Path
 		method := r.Method
 

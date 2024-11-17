@@ -1,0 +1,15 @@
+:33069 {
+    reverse_proxy host.docker.internal:3069
+}
+
+:34069 {
+    reverse_proxy host.docker.internal:4069
+}
+
+:35069 {
+    reverse_proxy host.docker.internal:5069
+}
+
+:36969 {
+    reverse_proxy host.docker.internal:6969
+}

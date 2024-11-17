@@ -1,0 +1,16 @@
+services:
+    caddyl4:
+        image: caddyl4
+        pull_policy: if_not_present
+        container_name: caddy_l4_server
+        ports:
+            - '16969:16969'
+        volumes:
+            - ./Caddyfile:/etc/caddy/Caddyfile
+            - caddy_data:/data
+            - caddy_config:/config
+        restart: unless-stopped
+
+volumes:
+    caddy_data:
+    caddy_config:

@@ -1,0 +1,10 @@
+{
+    layer4 {
+        :16969 {
+            @postgres postgres
+            route @postgres {
+                proxy host.docker.internal:5432
+            }
+        }
+    }
+}

@@ -1,0 +1,20 @@
+services:
+    caddy:
+        image: caddy:latest
+        container_name: caddy_server
+        ports:
+            - '80:80'
+            - '443:443'
+            - '33069:33069'
+            - '34069:34069'
+            - '35069:35069'
+            - '36969:36969'
+        volumes:
+            - ./Caddyfile:/etc/caddy/Caddyfile
+            - caddy_data:/data
+            - caddy_config:/config
+        restart: unless-stopped
+
+volumes:
+    caddy_data:
+    caddy_config:
