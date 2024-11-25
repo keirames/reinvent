@@ -6,5 +6,12 @@
                 proxy host.docker.internal:5432
             }
         }
+        :13306 {
+            route {
+                proxy {
+                    upstream host.docker.internal:3307
+                }
+            }
+        }
     }
 }

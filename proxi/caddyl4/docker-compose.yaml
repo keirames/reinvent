@@ -5,6 +5,7 @@ services:
         container_name: caddy_l4_server
         ports:
             - '16969:16969'
+            - '13306:13306'
         volumes:
             - ./Caddyfile:/etc/caddy/Caddyfile
             - caddy_data:/data

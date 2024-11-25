@@ -14,3 +14,6 @@ func (*App) CaddyModule() caddy.ModuleInfo {
 }
 
 func main() {}
+
+// Interface guard
+var _ caddy.App = (*App)(nil)
