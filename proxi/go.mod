@@ -2,7 +2,10 @@ module main
 
 go 1.22.2
 
-require github.com/caddyserver/caddy/v2 v2.8.4
+require (
+	github.com/caddyserver/caddy/v2 v2.8.4
+	github.com/go-sql-driver/mysql v1.7.1
+)
 
 require (
 	github.com/aryann/difflib v0.0.0-20210328193216-ff5ff6dc229b // indirect
