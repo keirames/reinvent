@@ -12,6 +12,7 @@ import (
 type Controller struct {
 	clientConn net.Conn
 	serverConn net.Conn
+	mysqlConn  net.Conn
 }
 
 type channelItem struct {
@@ -31,7 +32,7 @@ func readBuffer(data []byte) ([]byte, error) {
 }
 
 func createClient() error {
-	db, err := sql.Open("mysql", "root:hipages@tcp(127.0.0.1:3307)/mysql")
+	db, err := sql.Open("mysql", "root:hipages@tcp(127.0.0.1:8080)/mysql")
 	if err != nil {
 		fmt.Println("Client: Failed to connect to database", err)
 		return err
@@ -55,7 +56,7 @@ func createClient() error {
 
 // This server act like a middle man, forward packet from mysql client
 // to mysql server
-func createServer() error {
+func (c *Controller) createServer() error {
 	listener, err := net.Listen("tcp", "localhost:8080")
 	if err != nil {
 		fmt.Println(err)
@@ -74,16 +75,68 @@ func createServer() error {
 		}
 
 		fmt.Println("Server: Client connected to server")
+		c.clientConn = conn
 		break
 	}
 
+	go func() {
+		if c.mysqlConn == nil {
+			// Initialize mysql connection
+			mysqlConn, err := net.Dial("tcp", "localhost:3307")
+			if err != nil {
+				fmt.Println("Failed to initialize mysql connection", err)
+				panic(err)
+			}
+			c.mysqlConn = mysqlConn
+
+			// Handshake packet
+			p := make([]byte, 1024)
+			_, err = mysqlConn.Read(p)
+			if err != nil {
+				fmt.Println("Failed to read mysql connection", err)
+				panic(err)
+			}
+
+			fmt.Println("before", p)
+			p, err = readBuffer(p)
+			if err != nil {
+				fmt.Println("Failed to translate buffer", err)
+				panic(err)
+			}
+			fmt.Println("after", p)
+
+			// Send it to client to perform a handshake
+			_, err = c.clientConn.Write(p)
+			if err != nil {
+				fmt.Println("Failed to write handshake to client", err)
+				panic(err)
+			}
+		}
+	}()
+
 	for {
 		// TODO: find a way more efficient
-		data := make([]byte, 1024)
-		_, err := conn.Read(data)
+		p := make([]byte, 1024)
+		fmt.Println("Waiting message from client")
+		_, err := conn.Read(p)
 		if err != nil {
-			fmt.Println("Server: Failed to read data from client", err)
+			fmt.Println("Server: Failed to read p from client", err)
 			continue
+		}
+		fmt.Println("Server: Data received", p)
+
+		fmt.Println("before", p)
+		p, err = readBuffer(p)
+		if err != nil {
+			fmt.Println("Failed to translate buffer", err)
+			panic(err)
+		}
+		fmt.Println("after", p)
+
+		_, err = c.mysqlConn.Write(p)
+		if err != nil {
+			fmt.Println("Server: Failed to write handshake to mysql", err)
+			panic(err)
 		}
 	}
 }
@@ -101,10 +154,12 @@ func main() {
 		}
 	}()
 
+	c := new(Controller)
+
 	// Create server run 4ever
 	go func() {
 		for {
-			err := createServer()
+			err := c.createServer()
 			if err != nil {
 				fmt.Println("Failed to create server, try again...", err)
 			}
