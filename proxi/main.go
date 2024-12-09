@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -141,31 +142,55 @@ func (c *Controller) createServer() error {
 	}
 }
 
+func establishClient(conn net.Conn) error {
+	fmt.Println("Establishing client")
+
+	mysqlConn, err := net.Dial("tcp", "localhost:3307")
+	if err != nil {
+		fmt.Println("Failed to establish mysql connection", err)
+		return err
+	}
+
+	go func() {
+		defer mysqlConn.Close()
+		defer conn.Close()
+		io.Copy(conn, mysqlConn)
+	}()
+
+	go func() {
+		defer mysqlConn.Close()
+		defer conn.Close()
+		io.Copy(mysqlConn, conn)
+	}()
+
+	return nil
+}
+
+func makeServer() error {
+	listener, err := net.Listen("tcp", "localhost:8080")
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println("Err occur when accept connection, try again...", err)
+			continue
+		}
+
+		fmt.Println("Server: Client connected to server")
+		go establishClient(conn)
+	}
+}
+
 func main() {
-
-	// Create client run 4ever
-	go func() {
-		for {
-			err := createClient()
-			if err != nil {
-				fmt.Println("Failed to create client, try again...", err)
-			}
-			time.Sleep(2 * time.Second)
-		}
-	}()
-
-	c := new(Controller)
-
-	// Create server run 4ever
-	go func() {
-		for {
-			err := c.createServer()
-			if err != nil {
-				fmt.Println("Failed to create server, try again...", err)
-			}
-			time.Sleep(2 * time.Second)
-		}
-	}()
+	err := makeServer()
+	if err != nil {
+		fmt.Println("Failed to make server")
+		panic(err)
+	}
 
 	// TODO: there is a better way right ?
 	time.Sleep(10 * time.Hour)
